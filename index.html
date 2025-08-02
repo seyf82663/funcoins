@@ -1,0 +1,232 @@
+!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>FunCoins Chat</title>
+  <style>
+    body { font-family: sans-serif; background: #f0f4fa; margin:0; padding:0; }
+    header, footer { background:#6366F1; color:#fff; padding:12px; text-align:center; }
+    .container { max-width:640px; margin:16px auto; padding:0 12px; }
+    .card { background:#fff; border-radius:10px; padding:16px; margin-bottom:16px; box-shadow:0 8px 24px rgba(0,0,0,0.06); }
+    .btn { cursor:pointer; border:none; padding:10px 16px; border-radius:6px; font-weight:600; }
+    .btn-primary { background:#6366F1; color:#fff; }
+    .btn-secondary { background:#ddd; color:#333; }
+    .flex { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+    .small { font-size:12px; color:#555; margin-top:4px; }
+    .chat-box { height:160px; overflow:auto; border:1px solid #d1d5db; border-radius:6px; padding:8px; background:#fafbfe; }
+    input, select { padding:8px; border:1px solid #d1d5db; border-radius:6px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1 style="margin:0;">💰 FunCoins Chat</h1>
+    <div class="small">نسخة تجريبية</div>
+  </header>
+
+  <div class="container">
+    <!-- رصيد وتسجيل -->
+    <div class="card">
+      <div class="flex" style="justify-content:space-between;">
+        <div>
+          <div><strong>عملاتك:</strong> <span id="coins">0</span> 🪙</div>
+          <div class="small" id="uidDisplay"></div>
+        </div>
+        <div class="flex" style="gap:8px;">
+          <button class="btn btn-primary" id="loginBtn">سجّل دخول</button>
+          <button class="btn btn-secondary" id="logoutBtn" style="display:none;">تسجيل خروج</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- لعبة بسيطة -->
+    <div class="card">
+      <h3 style="margin-top:0;">🎮 اضغط لتحصل عملات</h3>
+      <div class="flex" style="gap:12px; flex-wrap:wrap;">
+        <button class="btn btn-primary" id="playBtn">العب الآن</button>
+        <div id="gameMsg" class="small"></div>
+        <div class="small">أكبر فوز: <span id="bestWin">0</span></div>
+      </div>
+    </div>
+
+    <!-- تصفيات بسيطة -->
+    <div class="card" id="cupGameCard">
+      <h3 style="margin-top:0;">🏆 تصفيات (نصف نهائي + نهائي)</h3>
+      <div class="small"><strong>نصف النهائي</strong></div>
+      <div class="flex" style="gap:12px; flex-wrap:wrap; margin-bottom:8px;">
+        <div>
+          <div>مباراة 1: مصر vs البرازيل</div>
+          <select data-match="1" class="cup-select">
+            <option value="">-- اختر الفائز --</option>
+            <option value="مصر">مصر</option>
+            <option value="البرازيل">البرازيل</option>
+          </select>
+        </div>
+        <div>
+          <div>مباراة 2: الأرجنتين vs فرنسا</div>
+          <select data-match="2" class="cup-select">
+            <option value="">-- اختر الفائز --</option>
+            <option value="الأرجنتين">الأرجنتين</option>
+            <option value="فرنسا">فرنسا</option>
+          </select>
+        </div>
+      </div>
+      <div class="small"><strong>النهائي</strong></div>
+      <div class="flex" style="gap:12px; flex-wrap:wrap; margin-bottom:8px;">
+        <div>
+          <div>مباراة 3: الفائز من 1 vs الفائز من 2</div>
+          <select data-match="3" class="cup-select">
+            <option value="">-- اختر الفائز --</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <button class="btn btn-primary" id="submitCup">قيّم اختياراتك</button>
+        <div id="cupResult" class="small" style="margin-top:6px;"></div>
+      </div>
+    </div>
+
+    <!-- الدردشة -->
+    <div class="card">
+      <h3 style="margin-top:0;">💬 غرفة الدردشة</h3>
+      <div id="chat" class="chat-box"></div>
+      <div class="flex">
+        <input type="text" id="msgInput" placeholder="اكتب رسالة..." />
+        <button class="btn btn-primary" id="sendBtn">إرسال</button>
+      </div>
+      <div class="small">الرسائل محفوظة محلياً.</div>
+    </div>
+  </div>
+
+  <footer>
+    FunCoins Chat © 2025 — نسخة تجريبية.
+  </footer>
+
+  <script>
+    // إدارة المستخدم
+    function getUser() { try { return JSON.parse(localStorage.getItem("funcoins_user")); } catch { return null; } }
+    function setUser(u) { localStorage.setItem("funcoins_user", JSON.stringify(u)); }
+    function clearUser() { localStorage.removeItem("funcoins_user"); }
+
+    const loginBtn = document.getElementById("loginBtn");
+    const logoutBtn = document.getElementById("logoutBtn");
+    const coinsEl = document.getElementById("coins");
+    const uidDisplay = document.getElementById("uidDisplay");
+    const bestWinEl = document.getElementById("bestWin");
+    const gameMsg = document.getElementById("gameMsg");
+    const chatBox = document.getElementById("chat");
+    const msgInput = document.getElementById("msgInput");
+
+    function updateUI() {
+      const user = getUser();
+      if (user) {
+        loginBtn.style.display = "none";
+        logoutBtn.style.display = "inline-block";
+        coinsEl.textContent = user.coins;
+        uidDisplay.textContent = `اسم: ${user.name}`;
+        bestWinEl.textContent = user.bestWin || 0;
+      } else {
+        loginBtn.style.display = "inline-block";
+        logoutBtn.style.display = "none";
+        coinsEl.textContent = 0;
+        uidDisplay.textContent = "";
+        bestWinEl.textContent = 0;
+      }
+      renderChat();
+    }
+
+    function login() {
+      let name = prompt("اكتب اسمك:");
+      if (!name) return;
+      name = name.trim();
+      if (!name) return;
+      const id = "u_" + Math.random().toString(36).substring(2,9);
+      setUser({ name, id, coins: 100, bestWin: 0 });
+      updateUI();
+    }
+
+    function logout() {
+      clearUser();
+      updateUI();
+    }
+
+    function playGame() {
+      const user = getUser();
+      if (!user) return alert("سجل دخول أولاً");
+      const reward = Math.floor(Math.random() * 10) + 1;
+      user.coins += reward;
+      if (reward > (user.bestWin || 0)) user.bestWin = reward;
+      setUser(user);
+      gameMsg.textContent = `فزت بـ ${reward} عملات!`;
+      updateUI();
+    }
+
+    function getChat() { try { return JSON.parse(localStorage.getItem("funcoins_chat") || "[]"); } catch { return []; } }
+    function setChat(arr) { localStorage.setItem("funcoins_chat", JSON.stringify(arr)); }
+
+    function sendMessage() {
+      const user = getUser();
+      if (!user) return alert("سجل دخول أول.");
+      const text = msgInput.value.trim();
+      if (!text) return;
+      const chat = getChat();
+      chat.push({ user: user.name, text, ts: Date.now() });
+      setChat(chat);
+      msgInput.value = "";
+      renderChat();
+    }
+
+    function renderChat() {
+      const chat = getChat();
+      chatBox.innerHTML = "";
+      chat.slice(-100).forEach(m => {
+        const d = document.createElement("div");
+        const time = new Date(m.ts);
+        const t = time.toLocaleTimeString("ar-EG", {hour:'2-digit', minute:'2-digit'});
+        d.innerHTML = `<strong>${escapeHtml(m.user)}:</strong> ${escapeHtml(m.text)} <span style="font-size:10px;color:#666;">(${t})</span>`;
+        chatBox.appendChild(d);
+      });
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function escapeHtml(s){ const div=document.createElement("div"); div.textContent=s; return div.innerHTML; }
+
+    loginBtn.addEventListener("click", login);
+    logoutBtn.addEventListener("click", logout);
+    document.getElementById("playBtn").addEventListener("click", playGame);
+    document.getElementById("sendBtn").addEventListener("click", sendMessage);
+    msgInput.addEventListener("keydown", e => { if (e.key === "Enter") sendMessage(); });
+
+    window.addEventListener("storage", () => { updateUI(); });
+    window.onload = updateUI;
+
+    // لعبة التصفيات
+    const correctCup = { 1: "البرازيل", 2: "فرنسا", 3: "فرنسا" };
+    function updateFinal() {
+      const w1 = document.querySelector('[data-match="1"]').value;
+      const w2 = document.querySelector('[data-match="2"]').value;
+      const finalSel = document.querySelector('[data-match="3"]');
+      finalSel.innerHTML = '<option value="">-- اختر الفائز --</option>';
+      if (w1) finalSel.innerHTML += `<option value="${w1}">${w1}</option>`;
+      if (w2) finalSel.innerHTML += `<option value="${w2}">${w2}</option>`;
+    }
+    document.querySelectorAll('.cup-select').forEach(el => el.addEventListener('change', updateFinal));
+    document.getElementById('submitCup').addEventListener('click', () => {
+      const user = getUser();
+      if (!user) return alert("سجل دخول أولاً!");
+      let score = 0;
+      for (let i=1;i<=3;i++){
+        const sel = document.querySelector(`[data-match="${i}"]`);
+        if (!sel) continue;
+        const pick = sel.value;
+        if (!pick) continue;
+        if (pick === correctCup[i]) score += (i===3?10:5);
+      }
+      user.coins = (user.coins||0) + score;
+      setUser(user);
+      if (typeof updateUI === 'function') updateUI();
+      document.getElementById('cupResult').textContent = `فزت بـ ${score} عملات!`;
+    });
+  </script>
+</body>
+</html>
